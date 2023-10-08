@@ -1,4 +1,4 @@
-package org.lemon;
+package org.lemon.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,6 +1,6 @@
 package org.lemon.exception;
 
-import org.lemon.RpcErrorMessageEnum;
+import org.lemon.enums.RpcErrorMessageEnum;
 
 public class RpcException extends RuntimeException {
     public RpcException(RpcErrorMessageEnum rpcErrorMessageEnum, String detail) {

@@ -20,22 +20,22 @@ public class ThreadPoolFactoryUtil {
     private ThreadPoolFactoryUtil() {}
 
     public static ExecutorService createCustomThreadPoolIfAbsent(String threadNamePrefix, CustomThreadPoolConfig customThreadPoolConfig, Boolean daemon) {
-        ExecutorService threadPool = THREAD_POOLS.computeIfAbsent(threadNamePrefix. k -> createThreadPool(customThreadPoolConfig, threadNamePrefix, daemon));
+        ExecutorService threadPool = THREAD_POOLS.computeIfAbsent(threadNamePrefix, k -> createThreadPool(customThreadPoolConfig, threadNamePrefix, daemon));
         if (threadPool.isShutdown() || threadPool.isTerminated()) {
             THREAD_POOLS.remove(threadNamePrefix);
-            threadPool = createCustomThreadPoolIfAbsent(customThreadPoolConfig, threadNamePrefix, daemon);
+            threadPool = createCustomThreadPoolIfAbsent(threadNamePrefix, customThreadPoolConfig, daemon);
             THREAD_POOLS.put(threadNamePrefix, threadPool);
         }
         return threadPool;
     }
 
     public static ExecutorService createCustomThreadPoolIfAbsent(String threadNamePrefix, CustomThreadPoolConfig customThreadPoolConfig) {
-        return createCustomThreadPoolIfAbsent(customThreadPoolConfig, threadNamePrefix, false);
+        return createCustomThreadPoolIfAbsent(threadNamePrefix, customThreadPoolConfig, false);
     }
 
     public static ExecutorService createCustomThreadPoolIfAbsent(String threadNamePrefix) {
         CustomThreadPoolConfig customThreadPoolConfig = new CustomThreadPoolConfig();
-        return createCustomThreadPoolIfAbsent(customThreadPoolConfig, threadNamePrefix, false);
+        return createCustomThreadPoolIfAbsent(threadNamePrefix, customThreadPoolConfig, false);
     }
 
     public static void shutDownAllThreadPool() {

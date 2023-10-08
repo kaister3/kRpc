@@ -2,7 +2,7 @@ package org.lemon.registry.zk;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
-import org.lemon.RpcErrorMessageEnum;
+import org.lemon.enums.RpcErrorMessageEnum;
 import org.lemon.exception.RpcException;
 import org.lemon.loadbalance.LoadBalance;
 import org.lemon.loadbalance.loadBalancer.RandomLoadBalance;

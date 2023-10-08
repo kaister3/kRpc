@@ -3,7 +3,7 @@ package org.lemon.proxy;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.lemon.RpcErrorMessageEnum;
+import org.lemon.enums.RpcErrorMessageEnum;
 import org.lemon.config.RpcServiceConfig;
 import org.lemon.enums.RpcResponseCodeEnum;
 import org.lemon.exception.RpcException;

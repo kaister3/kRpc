@@ -12,7 +12,6 @@ import org.apache.zookeeper.CreateMode;
 import org.lemon.enums.RpcConfigEnums;
 import org.lemon.utils.PropertiesFileUtil;
 
-import javax.management.RuntimeErrorException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
