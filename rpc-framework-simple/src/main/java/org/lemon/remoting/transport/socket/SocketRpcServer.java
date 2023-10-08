@@ -9,12 +9,12 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class HelloServer {
-    private static final Logger logger =  LoggerFactory.getLogger(HelloServer.class);
+public class SocketRpcServer {
+    private static final Logger logger =  LoggerFactory.getLogger(SocketRpcServer.class);
 
     public static void main(String[] args) {
         // 启动服务
-        HelloServer server = new HelloServer();
+        SocketRpcServer server = new SocketRpcServer();
         server.start(6666);
     }
 

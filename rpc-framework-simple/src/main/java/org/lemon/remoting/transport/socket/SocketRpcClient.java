@@ -1,16 +1,23 @@
 package org.lemon.remoting.transport.socket;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.lemon.registry.ServiceDiscovery;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-public class HelloClient {
+@AllArgsConstructor
+@Slf4j
+public class SocketRpcClient {
 
-    private static final Logger logger = LoggerFactory.getLogger(HelloClient.class);
+    private final ServiceDiscovery serviceDiscovery;
+
+    public SocketRpcClient() {
+//        this.serviceDiscovery = ExtensionLoader.get
+    }
 
     public Object send(Message message, String host, int port) {
         try (Socket socket = new Socket(host, port)) {
@@ -19,15 +26,15 @@ public class HelloClient {
             ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
             return objectInputStream.readObject();
         } catch (IOException | ClassNotFoundException e) {
-            logger.error("occur exception: ", e);
+            log.error("occur exception: ", e);
         }
         return null;
     }
 
     public static void main(String[] args) {
-        HelloClient helloClient = new HelloClient();
+        SocketRpcClient socketRpcClient = new SocketRpcClient();
         Message message1 = new Message("content from client");
-        Message message = (Message) helloClient.send(message1, "127.0.0.1", 6666);
+        Message message = (Message) socketRpcClient.send(message1, "127.0.0.1", 6666);
         System.out.println("client receive message: " + message.getMessage());
     }
 }

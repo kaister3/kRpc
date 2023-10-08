@@ -1,6 +1,7 @@
 package org.lemon.remoting.dto;
 
 import lombok.*;
+import org.lemon.enums.RpcResponseCodeEnum;
 
 import java.io.Serializable;
 
@@ -24,6 +25,12 @@ public class RpcResponse<T> implements Serializable {
 
     public static <T> RpcResponse<T> success(T data, String requestId) {
         RpcResponse<T> response = new RpcResponse<>();
-        response.setCode(RPC);
+        response.setCode(RpcResponseCodeEnum.SUCCESS.getCode());
+        response.setMessage(RpcResponseCodeEnum.SUCCESS.getMessage());
+        response.setRequestId(requestId);
+        if (data != null) {
+            response.setData(data);
+        }
+        return response;
     }
 }
