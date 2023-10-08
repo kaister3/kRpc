@@ -14,16 +14,14 @@ import org.lemon.remoting.dto.RpcResponse;
 import org.lemon.remoting.transport.netty.codec.KryoNettyDecoder;
 import org.lemon.remoting.transport.netty.codec.KryoNettyEncoder;
 import org.lemon.serialize.kryo.KryoSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Slf4j
-public class NettyClient {
+public class NettyRpcClient {
     private final String host;
     private final int port;
     private static final Bootstrap b;
 
-    public NettyClient(String host, int port) {
+    public NettyRpcClient(String host, int port) {
         this.host = host;
         this.port = port;
     }
@@ -45,7 +43,7 @@ public class NettyClient {
                         ch.pipeline().addLast(new KryoNettyDecoder(kryoSerializer, RpcResponse.class));
                         // ByteBuf -> RpcRequest
                         ch.pipeline().addLast(new KryoNettyEncoder(kryoSerializer, RpcRequest.class));
-                        ch.pipeline().addLast(new NettyClientHandler());
+                        ch.pipeline().addLast(new NettyRpcClientHandler());
                     }
                 });
     }
@@ -84,11 +82,11 @@ public class NettyClient {
         RpcRequest rpcRequest = RpcRequest.builder()
                 .interfaceName("interface")
                 .methodName("hello").build();
-        NettyClient nettyClient = new NettyClient("127.0.0.1", 8999);
+        NettyRpcClient nettyRpcClient = new NettyRpcClient("127.0.0.1", 8999);
         for (int i = 0; i < 3; i++) {
-            nettyClient.sendMessage(rpcRequest);
+            nettyRpcClient.sendMessage(rpcRequest);
         }
-        RpcResponse rpcResponse = nettyClient.sendMessage(rpcRequest);
+        RpcResponse rpcResponse = nettyRpcClient.sendMessage(rpcRequest);
         System.out.println(rpcResponse.toString());
     }
 }

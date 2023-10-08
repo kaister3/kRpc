@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.lemon.remoting.dto.RpcResponse;
 
 @Slf4j
-public class NettyClientHandler extends ChannelInboundHandlerAdapter {
+public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         try {

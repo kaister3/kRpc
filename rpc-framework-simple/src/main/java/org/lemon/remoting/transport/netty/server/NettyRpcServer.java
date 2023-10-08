@@ -13,7 +13,6 @@ import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.lemon.remoting.dto.RpcRequest;
 import org.lemon.remoting.dto.RpcResponse;
-import org.lemon.remoting.transport.netty.client.NettyClient;
 import org.lemon.remoting.transport.netty.codec.KryoNettyDecoder;
 import org.lemon.remoting.transport.netty.codec.KryoNettyEncoder;
 import org.lemon.serialize.kryo.KryoSerializer;
@@ -22,10 +21,10 @@ import org.lemon.serialize.kryo.KryoSerializer;
  * 用于接受客户端的请求并处理
  */
 @Slf4j
-public class NettyServer {
+public class NettyRpcServer {
     private final int port;
 
-    private NettyServer(int port) {
+    private NettyRpcServer(int port) {
         this.port = port;
     }
 
@@ -47,7 +46,7 @@ public class NettyServer {
                         protected void initChannel(SocketChannel ch) {
                             ch.pipeline().addLast(new KryoNettyDecoder(kryoSerializer, RpcRequest.class));
                             ch.pipeline().addLast(new KryoNettyEncoder(kryoSerializer, RpcResponse.class));
-                            ch.pipeline().addLast(new NettyServerHandler());
+                            ch.pipeline().addLast(new NettyRpcServerHandler());
                         }
                     });
             ChannelFuture f = b.bind(port).sync();
@@ -61,7 +60,7 @@ public class NettyServer {
     }
 
     public static void main(String[] args) {
-        new NettyServer(8999).run();
+        new NettyRpcServer(8999).run();
 
     }
 }

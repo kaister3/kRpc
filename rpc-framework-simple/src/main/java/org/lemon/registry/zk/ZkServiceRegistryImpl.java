@@ -8,7 +8,7 @@ import org.lemon.registry.zk.util.CuratorUtils;
 import java.net.InetSocketAddress;
 
 @Slf4j
-public class ZkServiceRegistry implements ServiceRegistry {
+public class ZkServiceRegistryImpl implements ServiceRegistry {
     @Override
     public void registerService(String rpcServiceName, InetSocketAddress inetSocketAddress) {
         String servicePath = CuratorUtils.ZK_REGISTER_PATH + "/" + rpcServiceName + inetSocketAddress.toString();
