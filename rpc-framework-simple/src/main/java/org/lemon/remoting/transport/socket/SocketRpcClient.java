@@ -2,6 +2,8 @@ package org.lemon.remoting.transport.socket;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.lemon.enums.ServiceDiscoveryEnum;
+import org.lemon.extension.ExtensionLoader;
 import org.lemon.registry.ServiceDiscovery;
 
 import java.io.IOException;
@@ -16,7 +18,7 @@ public class SocketRpcClient {
     private final ServiceDiscovery serviceDiscovery;
 
     public SocketRpcClient() {
-//        this.serviceDiscovery = ExtensionLoader.get
+        this.serviceDiscovery = ExtensionLoader.getExtensionLoader(ServiceDiscovery.class).getExtension(ServiceDiscoveryEnum.ZK.getName());
     }
 
     public Object send(Message message, String host, int port) {

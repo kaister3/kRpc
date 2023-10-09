@@ -5,7 +5,7 @@ public class StringUtil {
         if (s == null || s.isEmpty()) {
             return true;
         }
-        for (var ch : s.toCharArray()) {
+        for (char ch : s.toCharArray()) {
             if (!Character.isWhitespace(ch)) {
                 return false;
             }

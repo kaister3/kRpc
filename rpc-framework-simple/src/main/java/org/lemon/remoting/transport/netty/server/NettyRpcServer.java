@@ -1,37 +1,60 @@
 package org.lemon.remoting.transport.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.lemon.config.CustomShutdownHook;
+import org.lemon.config.RpcServiceConfig;
+import org.lemon.factory.SingletonFactory;
+import org.lemon.provider.ServiceProvider;
+import org.lemon.provider.impl.ZkServiceProviderImpl;
+import org.lemon.remoting.dto.RpcMessage;
 import org.lemon.remoting.dto.RpcRequest;
 import org.lemon.remoting.dto.RpcResponse;
 import org.lemon.remoting.transport.netty.codec.KryoNettyDecoder;
 import org.lemon.remoting.transport.netty.codec.KryoNettyEncoder;
+import org.lemon.remoting.transport.netty.codec.RpcMessageDecoder;
+import org.lemon.remoting.transport.netty.codec.RpcMessageEncoder;
 import org.lemon.serialize.kryo.KryoSerializer;
+import org.lemon.utils.RuntimeUtil;
+import org.lemon.utils.concurrent.threadpool.ThreadPoolFactoryUtil;
+import org.springframework.stereotype.Component;
+
+import java.net.InetAddress;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用于接受客户端的请求并处理
  */
 @Slf4j
+@Component
 public class NettyRpcServer {
-    private final int port;
+    public static final int PORT = 9998;
 
-    private NettyRpcServer(int port) {
-        this.port = port;
+    private final ServiceProvider serviceProvider = SingletonFactory.getInstance(ZkServiceProviderImpl.class);
+
+    public void registerService(RpcServiceConfig rpcServiceConfig) {
+        serviceProvider.publishService(rpcServiceConfig);
     }
 
-    private void run() {
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
+    @SneakyThrows
+    public void start() {
+        CustomShutdownHook.getCustomShutdownHook().clearAll();
+        String host = InetAddress.getLocalHost().getHostAddress();
+        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
-        KryoSerializer kryoSerializer = new KryoSerializer();
+        DefaultEventExecutorGroup serviceHandlerGroup = new DefaultEventExecutorGroup(
+                RuntimeUtil.cpus()*2,
+                ThreadPoolFactoryUtil.createThreadFactory("service-handler-group", false)
+        );
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
@@ -39,28 +62,32 @@ public class NettyRpcServer {
                     .childOption(ChannelOption.TCP_NODELAY, true)
                     // TCP底层心跳机制
                     .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    //表示系统用于临时存放已完成三次握手的请求的队列的最大长度,如果连接建立频繁，服务器处理创建新连接较慢，可以适当调大这个参数
                     .option(ChannelOption.SO_BACKLOG, 128)
                     .handler(new LoggingHandler(LogLevel.INFO))
+                    // 客户端第一次进行请求时才会进行初始化
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) {
-                            ch.pipeline().addLast(new KryoNettyDecoder(kryoSerializer, RpcRequest.class));
-                            ch.pipeline().addLast(new KryoNettyEncoder(kryoSerializer, RpcResponse.class));
-                            ch.pipeline().addLast(new NettyRpcServerHandler());
+                            // 30s 内没收到客户端请求则关闭
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast(new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
+                            p.addLast(new RpcMessageEncoder());
+                            p.addLast(new RpcMessageDecoder());
+                            p.addLast(serviceHandlerGroup, new NettyRpcServerHandler());
                         }
                     });
-            ChannelFuture f = b.bind(port).sync();
+            // 绑定端口，同步等待绑定成功
+            ChannelFuture f = b.bind(host, PORT).sync();
+            // wait until port close
             f.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             log.error("occur exception when start server: ", e);
         } finally {
+            log.error("shutdown bossGroup and workerGroup");
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+            serviceHandlerGroup.shutdownGracefully();
         }
-    }
-
-    public static void main(String[] args) {
-        new NettyRpcServer(8999).run();
-
     }
 }
