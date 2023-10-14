@@ -4,7 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SingletonFactory {
+public final class SingletonFactory {
     private static final Map<String, Object> OBJECT_MAP = new ConcurrentHashMap<>();
 
     private SingletonFactory() {}

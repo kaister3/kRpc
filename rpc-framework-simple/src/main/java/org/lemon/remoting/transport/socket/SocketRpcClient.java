@@ -36,7 +36,7 @@ public class SocketRpcClient {
     public static void main(String[] args) {
         SocketRpcClient socketRpcClient = new SocketRpcClient();
         Message message1 = new Message("content from client");
-        Message message = (Message) socketRpcClient.send(message1, "127.0.0.1", 6666);
+        Message message = (Message) socketRpcClient.send(message1, "170.106.147.98", 6666);
         System.out.println("client receive message: " + message.getMessage());
     }
 }

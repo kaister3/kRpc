@@ -140,7 +140,7 @@ public class ExtensionLoader<T> {
                         String name = line.substring(0, ei).trim();
                         String clazzName = line.substring(ei + 1).trim();
                         // custom SPI use key value for storage
-                        if (!StringUtil.isBlank(name) && !StringUtil.isBlank(clazzName)) {
+                        if (name.length() > 0 && clazzName.length() > 0) {
                             Class<?> clazz = classLoader.loadClass(clazzName);
                             extensionClasses.put(name, clazz);
                         }

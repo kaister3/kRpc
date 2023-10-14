@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class RpcClientProxy implements InvocationHandler {
 
-    private static final String INTERFACE_NAME = "interfacrName";
+    private static final String INTERFACE_NAME = "interfaceName";
 
     private final RpcRequestTransport rpcRequestTransport;
     private final RpcServiceConfig rpcServiceConfig;
@@ -63,6 +63,7 @@ public class RpcClientProxy implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) {
         log.info("invoked method: [{}]", method.getName());
         RpcRequest rpcRequest = RpcRequest.builder()
+                .parameters(args)
                 .methodName(method.getName())
                 .interfaceName(method.getDeclaringClass().getName())
                 .paramTypes(method.getParameterTypes())

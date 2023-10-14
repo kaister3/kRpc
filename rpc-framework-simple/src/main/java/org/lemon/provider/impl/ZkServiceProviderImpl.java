@@ -25,22 +25,22 @@ public class ZkServiceProviderImpl implements ServiceProvider {
      * value: service object
      */
     private final Map<String, Object> serviceMap;
-    private final Set<String> registerdService;
+    private final Set<String> registeredService;
     private final ServiceRegistry serviceRegistry;
 
     public ZkServiceProviderImpl() {
         serviceMap = new ConcurrentHashMap<>();
-        registerdService = ConcurrentHashMap.newKeySet();
+        registeredService = ConcurrentHashMap.newKeySet();
         serviceRegistry = ExtensionLoader.getExtensionLoader(ServiceRegistry.class).getExtension(ServiceRegistryEnum.ZK.getName());
     }
 
     @Override
     public void addService(RpcServiceConfig rpcServiceConfig) {
         String rpcServiceName = rpcServiceConfig.getServiceName();
-        if (registerdService.contains(rpcServiceName)) {
+        if (registeredService.contains(rpcServiceName)) {
             return;
         }
-        registerdService.add(rpcServiceName);
+        registeredService.add(rpcServiceName);
         serviceMap.put(rpcServiceName, rpcServiceConfig.getService());
         log.info("Add service: {} and interfaces: {}", rpcServiceName, rpcServiceConfig.getService().getClass().getInterfaces());
     }

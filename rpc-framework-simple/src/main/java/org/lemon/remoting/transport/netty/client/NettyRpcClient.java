@@ -8,30 +8,40 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.AttributeKey;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.lemon.enums.CompressTypeEnum;
+import org.lemon.enums.SerializationTypeEnum;
+import org.lemon.enums.ServiceDiscoveryEnum;
+import org.lemon.extension.ExtensionLoader;
+import org.lemon.factory.SingletonFactory;
+import org.lemon.registry.ServiceDiscovery;
+import org.lemon.remoting.constants.RpcConstants;
+import org.lemon.remoting.dto.RpcMessage;
 import org.lemon.remoting.dto.RpcRequest;
 import org.lemon.remoting.dto.RpcResponse;
+import org.lemon.remoting.transport.RpcRequestTransport;
 import org.lemon.remoting.transport.netty.codec.KryoNettyDecoder;
 import org.lemon.remoting.transport.netty.codec.KryoNettyEncoder;
+import org.lemon.remoting.transport.netty.codec.RpcMessageDecoder;
+import org.lemon.remoting.transport.netty.codec.RpcMessageEncoder;
 import org.lemon.serialize.kryo.KryoSerializer;
 
+import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
+
 @Slf4j
-public class NettyRpcClient {
-    private final String host;
-    private final int port;
-    private static final Bootstrap b;
+public class NettyRpcClient implements RpcRequestTransport {
+    private final ServiceDiscovery serviceDiscovery;
+    private final UnprocessedRequests unprocessedRequests;
+    private final ChannelProvider channelProvider;
+    private final Bootstrap bootstrap;
+    private final EventLoopGroup eventLoopGroup;
 
-    public NettyRpcClient(String host, int port) {
-        this.host = host;
-        this.port = port;
-    }
-
-    // 初始化相关资源
-    static {
-        EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-        b = new Bootstrap();
-        KryoSerializer kryoSerializer = new KryoSerializer();
-        b.group(eventLoopGroup)
+    public NettyRpcClient() {
+        eventLoopGroup = new NioEventLoopGroup();
+        bootstrap = new Bootstrap();
+        bootstrap.group(eventLoopGroup)
                 .channel(NioSocketChannel.class)
                 .handler(new LoggingHandler(LogLevel.INFO))
                 // 超时时间
@@ -40,12 +50,30 @@ public class NettyRpcClient {
                     @Override
                     protected void initChannel(SocketChannel ch) {
 //                        RpcResponse -> ByteBuf
-                        ch.pipeline().addLast(new KryoNettyDecoder(kryoSerializer, RpcResponse.class));
+                        ChannelPipeline p = ch.pipeline();
+                        p.addLast(new RpcMessageEncoder());
                         // ByteBuf -> RpcRequest
-                        ch.pipeline().addLast(new KryoNettyEncoder(kryoSerializer, RpcRequest.class));
-                        ch.pipeline().addLast(new NettyRpcClientHandler());
+                        p.addLast(new RpcMessageDecoder());
+                        p.addLast(new NettyRpcClientHandler());
                     }
                 });
+        this.serviceDiscovery = ExtensionLoader.getExtensionLoader(ServiceDiscovery.class).getExtension(ServiceDiscoveryEnum.ZK.getName());
+        this.unprocessedRequests = SingletonFactory.getInstance(UnprocessedRequests.class);
+        this.channelProvider = SingletonFactory.getInstance(ChannelProvider.class);
+    }
+
+    @SneakyThrows
+    public Channel doConnect(InetSocketAddress inetSocketAddress) {
+        CompletableFuture<Channel> completableFuture = new CompletableFuture<>();
+        bootstrap.connect(inetSocketAddress).addListener((ChannelFutureListener) future -> {
+            if (future.isSuccess()) {
+                log.info("the client has connected to [{}] successfully", inetSocketAddress.toString());
+                completableFuture.complete(future.channel());
+            } else {
+                throw new IllegalStateException();
+            }
+        });
+        return completableFuture.get();
     }
 
     /**
@@ -53,40 +81,42 @@ public class NettyRpcClient {
      * @param rpcRequest 消息体
      * @return 服务端返回的数据
      */
-    public RpcResponse sendMessage(RpcRequest rpcRequest) {
-        try {
-            ChannelFuture f = b.connect(host, port).sync();
-            log.info("client connect to {} ", host + ": " + port);
-            Channel futureChannel = f.channel();
-            if (futureChannel != null) {
-                futureChannel.writeAndFlush(rpcRequest).addListener(future -> {
-                    if (future.isSuccess()) {
-                        log.info("client sent message: [{}]", rpcRequest.toString());
-                    } else {
-                        log.error("message sent failed: ", future.cause());
-                    }
-                });
-                // 阻塞等待 直到channel关闭
-                futureChannel.closeFuture().sync();
-                // 将返回的数据取出
-                AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
-                return futureChannel.attr(key).get();
-            }
-        } catch (InterruptedException e) {
-            log.error("occur exception when connect server: ", e);
+    @Override
+    public Object sendRpcRequest(RpcRequest rpcRequest) {
+        CompletableFuture<RpcResponse<Object>> resultFuture = new CompletableFuture<>();
+        InetSocketAddress inetSocketAddress = serviceDiscovery.lookupService(rpcRequest);
+        Channel channel = getChannel(inetSocketAddress);
+        if (channel.isActive()) {
+            unprocessedRequests.put(rpcRequest.getRequestId(), resultFuture);
+            RpcMessage rpcMessage = RpcMessage.builder().data(rpcRequest)
+                    .codec(SerializationTypeEnum.KRYO.getCode())
+                    .compress(CompressTypeEnum.GZIP.getCode())
+                    .messageType(RpcConstants.REQUEST_TYPE).build();
+            channel.writeAndFlush(rpcMessage).addListener((ChannelFutureListener) future -> {
+                if (future.isSuccess()) {
+                    log.info("client send message: [{}]", rpcMessage);
+                } else {
+                    future.channel().close();
+                    resultFuture.completeExceptionally(future.cause());
+                    log.error("Send failed", future.cause());
+                }
+            });
+        } else {
+            throw new IllegalStateException();
         }
-        return null;
+        return resultFuture;
     }
 
-    public static void main(String[] args) {
-        RpcRequest rpcRequest = RpcRequest.builder()
-                .interfaceName("interface")
-                .methodName("hello").build();
-        NettyRpcClient nettyRpcClient = new NettyRpcClient("127.0.0.1", 8999);
-        for (int i = 0; i < 3; i++) {
-            nettyRpcClient.sendMessage(rpcRequest);
+    public Channel getChannel(InetSocketAddress inetSocketAddress) {
+        Channel channel = channelProvider.get(inetSocketAddress);
+        if (channel == null) {
+            channel = doConnect(inetSocketAddress);
+            channelProvider.set(inetSocketAddress, channel);
         }
-        RpcResponse rpcResponse = nettyRpcClient.sendMessage(rpcRequest);
-        System.out.println(rpcResponse.toString());
+        return channel;
+    }
+
+    public void close() {
+        eventLoopGroup.shutdownGracefully();
     }
 }

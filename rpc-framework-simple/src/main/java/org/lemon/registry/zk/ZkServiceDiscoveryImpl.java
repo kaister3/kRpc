@@ -15,10 +15,10 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 @Slf4j
-public class ZkSeviceDiscoveryImpl implements ServiceDiscovery {
+public class ZkServiceDiscoveryImpl implements ServiceDiscovery {
     private final LoadBalance loadBalance;
 
-    public ZkSeviceDiscoveryImpl() {
+    public ZkServiceDiscoveryImpl() {
         this.loadBalance = new RandomLoadBalance();
     }
     @Override
